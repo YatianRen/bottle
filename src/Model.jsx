@@ -178,7 +178,7 @@ const Model = (props) => {
 
       <group
         ref={modelRef}
-        rotation={[-Math.PI / 2, 1.7, Math.PI / 2]}
+        rotation={[0, 1.7, 0]}
         position={[2, 0, 5]}
         scale={[1.1, 1.1, 1.1]}
         {...props}
