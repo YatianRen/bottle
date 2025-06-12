@@ -2,27 +2,27 @@ export const colors = [0x722f37, 0x8b4513, 0x2f4f2f, 0x800020];
 
 export const wines = [
   {
-    name: "Château Bordeaux Reserve",
-    year: "2019",
-    type: "Red Wine",
+    name: "Midnight Rebel",
+    year: "2022",
+    type: "Bold Red",
     color: 0x722f37
   },
   {
-    name: "Napa Valley Chardonnay",
-    year: "2021", 
-    type: "White Wine",
+    name: "Golden Hour",
+    year: "2023", 
+    type: "Crisp White",
     color: 0x8b4513
   },
   {
-    name: "Tuscan Chianti Classico",
-    year: "2020",
-    type: "Red Wine", 
+    name: "Urban Jungle",
+    year: "2022",
+    type: "Natural Red", 
     color: 0x2f4f2f
   },
   {
-    name: "Burgundy Pinot Noir",
-    year: "2018",
-    type: "Red Wine",
+    name: "After Dark",
+    year: "2021",
+    type: "Deep Red",
     color: 0x800020
   }
 ];
