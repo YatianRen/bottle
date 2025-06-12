@@ -4,7 +4,7 @@ import { animate } from "framer-motion";
 import { easeQuadOut } from "d3-ease";
 import { Color } from "three";
 
-import { colors } from "./data";
+import { wines } from "./data";
 import { useStore } from "./store";
 
 import { BackgroundMaterial } from "./BackgroundMaterial";
@@ -22,7 +22,7 @@ function Background() {
 
   const handleClick = () => {
     if (play) {
-      index == colors.length - 1 ? setIndex(0) : setIndex(index + 1);
+      index == wines.length - 1 ? setIndex(0) : setIndex(index + 1);
     }
   };
 
@@ -34,7 +34,7 @@ function Background() {
         material.current.u_progress = v;
       },
 
-      duration: 2,
+      duration: 2.5,
       ease: easeQuadOut,
     });
   }, [index]);
@@ -51,7 +51,7 @@ function Background() {
         ref={material}
         key={BackgroundMaterial.key}
         u_aspect={width / height}
-        u_color={new Color(colors[index])}
+        u_color={new Color(wines[index].color)}
       />
     </mesh>
   );

@@ -15,7 +15,7 @@ import { easeQuadOut } from "d3-ease";
 
 import { noise } from "./Noise";
 import { useStore } from "./store";
-import { colors } from "./data";
+import { wines } from "./data";
 
 import model from "./assets/models/energy-can.glb?url";
 
@@ -31,12 +31,13 @@ const Model = (props) => {
 
   const play = useStore((s) => s.play);
   const setPlay = useStore((s) => s.setPlay);
+  const setCurrentWine = useStore((s) => s.setCurrentWine);
 
   const uniforms = useMemo(
     () => ({
       u_time: { value: 0 },
-      u_color1: { value: new Color(colors[0]) },
-      u_color2: { value: new Color(colors[1]) },
+      u_color1: { value: new Color(wines[0].color) },
+      u_color2: { value: new Color(wines[1].color) },
       u_progress: { value: 0.5 },
       u_width: { value: 0.8 },
       u_scaleX: { value: 50 },
@@ -48,12 +49,13 @@ const Model = (props) => {
         ),
       },
     }),
-    [colors]
+    [wines]
   );
 
   const handleClick = () => {
-    let len = colors.length;
-    let nextTexture = new Color(colors[(current + 1) % len]);
+    let len = wines.length;
+    let nextIndex = (current + 1) % len;
+    let nextTexture = new Color(wines[nextIndex].color);
     uniforms.u_color2.value = nextTexture;
 
     if (play) {
@@ -63,14 +65,15 @@ const Model = (props) => {
           uniforms.u_progress.value = v;
         },
         onComplete() {
-          setCurrent((current + 1) % len);
+          setCurrent(nextIndex);
+          setCurrentWine(wines[nextIndex]);
 
           uniforms.u_color1.value = nextTexture;
           uniforms.u_progress.value = 0.5;
           setPlay(true);
         },
 
-        duration: 1,
+        duration: 1.2,
         ease: easeQuadOut,
       });
     }
@@ -80,22 +83,26 @@ const Model = (props) => {
     const time = clock.getElapsedTime();
     uniforms.u_time.value = time;
 
-    modelRef.current.position.y = Math.sin(time) * 0.12;
+    // Gentle floating animation for wine bottle
+    modelRef.current.position.y = Math.sin(time * 0.8) * 0.08;
+    modelRef.current.rotation.y = Math.sin(time * 0.3) * 0.05;
   });
 
   useEffect(() => {
-    materials.Body.metalness = 0;
-    materials.Body.roughness = 1;
+    // Initialize current wine in store
+    setCurrentWine(wines[0]);
+  }, [setCurrentWine]);
+
+  useEffect(() => {
+    materials.Body.metalness = 0.1;
+    materials.Body.roughness = 0.8;
     materials.Body.onBeforeCompile = (shader) => {
       shader.uniforms = Object.assign(shader.uniforms, uniforms);
       shader.vertexShader = shader.vertexShader.replace(
         `#include <common>`,
         `
           #include <common>
-
-
           varying vec2 vUv;
-
         `
       );
 
@@ -103,13 +110,11 @@ const Model = (props) => {
         "#include <begin_vertex>",
         `
           #include <begin_vertex>
-
           vUv = uv;
         `
       );
 
       // Fragment Shader
-
       shader.fragmentShader = shader.fragmentShader.replace(
         `#include <common>`,
         `
@@ -124,19 +129,13 @@ const Model = (props) => {
           uniform float u_scaleY;
           uniform vec2 u_textureSize;
 
-
-
           varying vec2 vUv;
-
           
           ${noise}
-
 
           float parabola( float x, float k ) {
             return pow( 4. * x * ( 1. - x ), k );
           }
-
-
       `
       );
 
@@ -150,19 +149,21 @@ const Model = (props) => {
             float dt = parabola(u_progress,1.);
             float border = 1.;
 
-            float noise = 0.5*(cnoise(vec4(vUv.x*u_scaleX  + 0.5*u_time/3., vUv.y*u_scaleY,0.5*u_time/3.,0.)) + 1.);
+            float noise = 0.5*(cnoise(vec4(vUv.x*u_scaleX + 0.5*u_time/4., vUv.y*u_scaleY,0.5*u_time/4.,0.)) + 1.);
 
             float w = u_width*dt;
 
             float maskValue = smoothstep(1. - w,1.,vUv.y + mix(-w/2., 1. - w/2., u_progress));
 
-            maskValue += maskValue * noise;
+            maskValue += maskValue * noise * 0.3;
 
             float mask = smoothstep(border,border+0.01,maskValue);
 
-            diffuseColor.rgb += mix(u_color1,u_color2,mask);
+            // Enhanced wine colors with more depth
+            vec3 wine1 = u_color1 * 1.2;
+            vec3 wine2 = u_color2 * 1.2;
 
-
+            diffuseColor.rgb += mix(wine1, wine2, mask);
         `
       );
     };
@@ -178,7 +179,8 @@ const Model = (props) => {
       <group
         ref={modelRef}
         rotation={[-Math.PI / 2, 1.7, Math.PI / 2]}
-        position={[0, 0, 5]}
+        position={[2, 0, 5]}
+        scale={[1.1, 1.1, 1.1]}
         {...props}
         dispose={null}
       >

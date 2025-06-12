@@ -2,33 +2,37 @@ const CodropsFrame = () => {
   return (
     <div className="frame">
       <header className="frame__header">
-        <h1 className="frame__title">
-          Model Texture Transition And Procedural Radial Noise Using <a target="_blank" href="https://tympanus.net/codrops/demos/?tag=webgl">WebGL</a>
-        </h1>
-        <a
-          aria-label="Read Article"
-          className="frame__back"
-          href="https://tympanus.net/codrops/?p=77050"
-          target="_blank"
-        >
-          Article
-        </a>
-        <a
-          className="frame__prev" 
-          target="_blank" 
-          href="https://tympanus.net/codrops/demos/"
-        >
-          All demos
-        </a>
-        <a
-          className="frame__github"
-          target="_blank" 
-          href="https://github.com/mohAmineBrs/codrops-noise-transition/"
-        >
-          Github
-        </a>
+        <div className="brand">
+          <div className="brand__logo">🍷</div>
+          <h2 className="brand__name">Vinterra</h2>
+        </div>
+        <nav className="frame__nav">
+          <a href="#wines">Wines</a>
+          <a href="#about">About</a>
+          <a href="#contact">Contact</a>
+        </nav>
       </header>
-      <button className="click__anywhere">Click Anywhere</button>
+      
+      <div className="hero__content">
+        <div className="hero__text">
+          <h1 className="hero__title">
+            Discover the World's
+            <span className="hero__title--accent">Finest Wines</span>
+          </h1>
+          <p className="hero__tagline">
+            From prestigious vineyards to your table. Experience exceptional wines 
+            crafted with passion and tradition, delivered to your doorstep.
+          </p>
+          <button className="hero__cta">
+            Explore Our Collection
+            <span className="hero__cta-arrow">→</span>
+          </button>
+        </div>
+      </div>
+
+      <div className="wine__info">
+        <p className="wine__current">Click to explore different wines</p>
+      </div>
     </div>
   );
 };
