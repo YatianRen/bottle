@@ -226,7 +226,7 @@ const Model = (props) => {
         ref={modelRef}
         // ROTATION: [x-axis, y-axis, z-axis] in radians
         // Current: slightly rotated to show the bottle nicely
-        rotation={[-95.9, 0, -1]}
+        rotation={[-95.9, 1.2, -1]}
         
         // POSITION: [x, y, z] - move the bottle in 3D space
         // x: left(-) / right(+)
