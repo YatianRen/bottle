@@ -215,7 +215,7 @@ const Model = (props) => {
         ref={groupRef}
         // 🔄 ROTATION: [x-axis, y-axis, z-axis] in radians
         // Adjust these to change the bottle's orientation:
-        rotation={[0, 0, 1]}
+        rotation={[0, 0, 0]}
         
         // 📍 POSITION: [x, y, z] - This controls the bottle's location
         // x: left(-) / right(+) - try values like -2, 0, 2, 4
