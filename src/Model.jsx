@@ -232,11 +232,10 @@ const Model = (props) => {
         // x: left(-) / right(+)
         // y: down(-) / up(+) 
         // z: back(-) / forward(+)
-        position={[2, 0, 0
-                ]}
+        position={[2, 0, 0]}
         
         // SCALE: [x, y, z] - make the bottle bigger/smaller
-        scale={[2, 2, 2]}
+        scale={[3, 3, 3]}
         
         {...props}
         dispose={null}
