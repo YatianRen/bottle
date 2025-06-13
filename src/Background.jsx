@@ -52,6 +52,29 @@ function Background() {
         key={BackgroundMaterial.key}
         u_aspect={width / height}
         u_color={new Color(wines[index].color)}
+        
+        {/* 🎯 BACKGROUND ANIMATION CENTER CONTROL - Change these values! */}
+        u_centerX={0.7}  {/* 0.0 = left edge, 0.5 = center, 1.0 = right edge */}
+        u_centerY={0.5}  {/* 0.0 = bottom, 0.5 = center, 1.0 = top */}
+        
+        {/* 
+        🎨 EXAMPLES TO TRY:
+        
+        Center (default):     u_centerX={0.5} u_centerY={0.5}
+        Top-left corner:      u_centerX={0.0} u_centerY={1.0}
+        Top-right corner:     u_centerX={1.0} u_centerY={1.0}
+        Bottom-left corner:   u_centerX={0.0} u_centerY={0.0}
+        Bottom-right corner:  u_centerX={1.0} u_centerY={0.0}
+        Left side center:     u_centerX={0.0} u_centerY={0.5}
+        Right side center:    u_centerX={1.0} u_centerY={0.5}
+        Top center:           u_centerX={0.5} u_centerY={1.0}
+        Bottom center:        u_centerX={0.5} u_centerY={0.0}
+        
+        🌊 CREATIVE POSITIONS:
+        Slightly off-center:  u_centerX={0.6} u_centerY={0.4}
+        Far right:            u_centerX={0.8} u_centerY={0.5}
+        Upper right:          u_centerX={0.7} u_centerY={0.7}
+        */}
       />
     </mesh>
   );
