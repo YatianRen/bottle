@@ -225,7 +225,7 @@ const Model = (props) => {
         
         // 📏 SCALE: [x, y, z] - Make the bottle bigger/smaller
         // Try values like [1, 1, 1] for normal size, [2, 2, 2] for double size
-        scale={[1.5, 1.5, 1.5]}
+        scale={[1.8, 1.8, 1.8]}
         
         {...props}
         dispose={null}
