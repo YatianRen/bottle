@@ -17,7 +17,8 @@ import { noise } from "./Noise";
 import { useStore } from "./store";
 import { wines } from "./data";
 
-import model from "./assets/models/energy-can.glb?url";
+// Updated to use JD bottle model
+import model from "./assets/models/jd_bottle.glb?url";
 
 const Model = (props) => {
   const { nodes, materials } = useGLTF(model);
@@ -33,6 +34,12 @@ const Model = (props) => {
   const setPlay = useStore((s) => s.setPlay);
   const setCurrentWine = useStore((s) => s.setCurrentWine);
 
+  // Log available materials to help identify the correct one
+  useEffect(() => {
+    console.log("Available materials:", Object.keys(materials));
+    console.log("Available nodes:", Object.keys(nodes));
+  }, [materials, nodes]);
+
   const uniforms = useMemo(
     () => ({
       u_time: { value: 0 },
@@ -43,10 +50,7 @@ const Model = (props) => {
       u_scaleX: { value: 50 },
       u_scaleY: { value: 50 },
       u_textureSize: {
-        value: new Vector2(
-          materials.Body.map.source.data.width,
-          materials.Body.map.source.data.height
-        ),
+        value: new Vector2(1024, 1024), // Default size, will update when material is found
       },
     }),
     [wines]
@@ -83,9 +87,20 @@ const Model = (props) => {
     const time = clock.getElapsedTime();
     uniforms.u_time.value = time;
 
-    // Gentle floating animation for wine bottle
+    // ANIMATION CENTER CONTROL - This is where you control the floating animation
+    // You can adjust these values to change the animation behavior:
+    
+    // Vertical floating (Y-axis) - change amplitude (0.08) and speed (0.8)
     modelRef.current.position.y = Math.sin(time * 0.8) * 0.08;
+    
+    // Gentle rotation (Y-axis) - change amplitude (0.05) and speed (0.3)
     modelRef.current.rotation.y = Math.sin(time * 0.3) * 0.05;
+    
+    // Optional: Add X-axis floating
+    // modelRef.current.position.x = Math.cos(time * 0.5) * 0.03;
+    
+    // Optional: Add Z-axis rotation
+    // modelRef.current.rotation.z = Math.sin(time * 0.4) * 0.02;
   });
 
   useEffect(() => {
@@ -94,80 +109,110 @@ const Model = (props) => {
   }, [setCurrentWine]);
 
   useEffect(() => {
-    materials.Body.metalness = 0.1;
-    materials.Body.roughness = 0.8;
-    materials.Body.onBeforeCompile = (shader) => {
-      shader.uniforms = Object.assign(shader.uniforms, uniforms);
-      shader.vertexShader = shader.vertexShader.replace(
-        `#include <common>`,
+    // Find the main material for the bottle
+    // Common material names for bottles: "Material", "Bottle", "Glass", "Body", etc.
+    const materialNames = Object.keys(materials);
+    let targetMaterial = null;
+    
+    // Try to find the main bottle material
+    const possibleNames = ['Material', 'Bottle', 'Glass', 'Body', 'Main'];
+    for (const name of possibleNames) {
+      if (materials[name]) {
+        targetMaterial = materials[name];
+        break;
+      }
+    }
+    
+    // If no specific material found, use the first available material
+    if (!targetMaterial && materialNames.length > 0) {
+      targetMaterial = materials[materialNames[0]];
+      console.log(`Using material: ${materialNames[0]}`);
+    }
+
+    if (targetMaterial) {
+      // Update texture size if material has a map
+      if (targetMaterial.map) {
+        uniforms.u_textureSize.value = new Vector2(
+          targetMaterial.map.source.data.width,
+          targetMaterial.map.source.data.height
+        );
+      }
+
+      targetMaterial.metalness = 0.1;
+      targetMaterial.roughness = 0.8;
+      targetMaterial.onBeforeCompile = (shader) => {
+        shader.uniforms = Object.assign(shader.uniforms, uniforms);
+        shader.vertexShader = shader.vertexShader.replace(
+          `#include <common>`,
+          `
+            #include <common>
+            varying vec2 vUv;
+          `
+        );
+
+        shader.vertexShader = shader.vertexShader.replace(
+          "#include <begin_vertex>",
+          `
+            #include <begin_vertex>
+            vUv = uv;
+          `
+        );
+
+        // Fragment Shader
+        shader.fragmentShader = shader.fragmentShader.replace(
+          `#include <common>`,
+          `
+            #include <common>
+
+            uniform float u_time;
+            uniform vec3 u_color1;
+            uniform vec3 u_color2;
+            uniform float u_progress;
+            uniform float u_width;
+            uniform float u_scaleX;
+            uniform float u_scaleY;
+            uniform vec2 u_textureSize;
+
+            varying vec2 vUv;
+            
+            ${noise}
+
+            float parabola( float x, float k ) {
+              return pow( 4. * x * ( 1. - x ), k );
+            }
         `
-          #include <common>
-          varying vec2 vUv;
-        `
-      );
+        );
 
-      shader.vertexShader = shader.vertexShader.replace(
-        "#include <begin_vertex>",
-        `
-          #include <begin_vertex>
-          vUv = uv;
-        `
-      );
+        shader.fragmentShader = shader.fragmentShader.replace(
+          `#include <color_fragment>`,
+          `
+            #include <color_fragment>
 
-      // Fragment Shader
-      shader.fragmentShader = shader.fragmentShader.replace(
-        `#include <common>`,
-        `
-          #include <common>
+              float aspect = u_textureSize.x/u_textureSize.y;
 
-          uniform float u_time;
-          uniform vec3 u_color1;
-          uniform vec3 u_color2;
-          uniform float u_progress;
-          uniform float u_width;
-          uniform float u_scaleX;
-          uniform float u_scaleY;
-          uniform vec2 u_textureSize;
+              float dt = parabola(u_progress,1.);
+              float border = 1.;
 
-          varying vec2 vUv;
-          
-          ${noise}
+              float noise = 0.5*(cnoise(vec4(vUv.x*u_scaleX + 0.5*u_time/4., vUv.y*u_scaleY,0.5*u_time/4.,0.)) + 1.);
 
-          float parabola( float x, float k ) {
-            return pow( 4. * x * ( 1. - x ), k );
-          }
-      `
-      );
+              float w = u_width*dt;
 
-      shader.fragmentShader = shader.fragmentShader.replace(
-        `#include <color_fragment>`,
-        `
-          #include <color_fragment>
+              float maskValue = smoothstep(1. - w,1.,vUv.y + mix(-w/2., 1. - w/2., u_progress));
 
-            float aspect = u_textureSize.x/u_textureSize.y;
+              maskValue += maskValue * noise * 0.3;
 
-            float dt = parabola(u_progress,1.);
-            float border = 1.;
+              float mask = smoothstep(border,border+0.01,maskValue);
 
-            float noise = 0.5*(cnoise(vec4(vUv.x*u_scaleX + 0.5*u_time/4., vUv.y*u_scaleY,0.5*u_time/4.,0.)) + 1.);
+              // Enhanced wine colors with more depth
+              vec3 wine1 = u_color1 * 1.2;
+              vec3 wine2 = u_color2 * 1.2;
 
-            float w = u_width*dt;
-
-            float maskValue = smoothstep(1. - w,1.,vUv.y + mix(-w/2., 1. - w/2., u_progress));
-
-            maskValue += maskValue * noise * 0.3;
-
-            float mask = smoothstep(border,border+0.01,maskValue);
-
-            // Enhanced wine colors with more depth
-            vec3 wine1 = u_color1 * 1.2;
-            vec3 wine2 = u_color2 * 1.2;
-
-            diffuseColor.rgb += mix(wine1, wine2, mask);
-        `
-      );
-    };
-  }, [uniforms]);
+              diffuseColor.rgb += mix(wine1, wine2, mask);
+          `
+        );
+      };
+    }
+  }, [uniforms, materials]);
 
   return (
     <>
@@ -176,24 +221,41 @@ const Model = (props) => {
         <planeGeometry args={[width, height]} />
       </mesh>
 
+      {/* MODEL POSITIONING CONTROL - This is where you control the bottle's position and rotation */}
       <group
         ref={modelRef}
-        rotation={[0, 1.7, 0]}
+        // ROTATION: [x-axis, y-axis, z-axis] in radians
+        // Current: slightly rotated to show the bottle nicely
+        rotation={[0, 1.2, 0]}
+        
+        // POSITION: [x, y, z] - move the bottle in 3D space
+        // x: left(-) / right(+)
+        // y: down(-) / up(+) 
+        // z: back(-) / forward(+)
         position={[2, 0, 5]}
+        
+        // SCALE: [x, y, z] - make the bottle bigger/smaller
         scale={[1.1, 1.1, 1.1]}
+        
         {...props}
         dispose={null}
       >
-        <group rotation={[-Math.PI / 2, 0, 0]}>
-          <mesh
-            geometry={nodes.LowRes_Can_Alluminium_0.geometry}
-            material={materials.Alluminium}
-          />
-          <mesh
-            geometry={nodes.LowRes_Can_Body_0.geometry}
-            material={materials.Body}
-          />
-        </group>
+        {/* Render all meshes from the JD bottle model */}
+        {Object.entries(nodes).map(([name, node]) => {
+          if (node.geometry && node.material) {
+            return (
+              <mesh
+                key={name}
+                geometry={node.geometry}
+                material={materials[node.material.name] || node.material}
+                rotation={node.rotation}
+                position={node.position}
+                scale={node.scale}
+              />
+            );
+          }
+          return null;
+        })}
       </group>
     </>
   );
