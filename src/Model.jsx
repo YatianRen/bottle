@@ -221,7 +221,7 @@ const Model = (props) => {
         // x: left(-) / right(+) - try values like -2, 0, 2, 4
         // y: down(-) / up(+) - try values like -2, 0, 2, 4  
         // z: back(-) / forward(+) - try values like 3, 5, 7
-        position={[2, -1.5, 8]}
+        position={[2, -1.5, 5]}
         
         // 📏 SCALE: [x, y, z] - Make the bottle bigger/smaller
         // Try values like [1, 1, 1] for normal size, [2, 2, 2] for double size
