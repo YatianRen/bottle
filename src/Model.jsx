@@ -28,6 +28,7 @@ const Model = (props) => {
   } = useThree();
 
   const modelRef = useRef();
+  const groupRef = useRef(); // Separate ref for the group positioning
   const [current, setCurrent] = useState(0);
 
   const play = useStore((s) => s.play);
@@ -87,20 +88,25 @@ const Model = (props) => {
     const time = clock.getElapsedTime();
     uniforms.u_time.value = time;
 
-    // ANIMATION CENTER CONTROL - This is where you control the floating animation
-    // You can adjust these values to change the animation behavior:
+    // 🎯 ANIMATION CENTER CONTROL - This controls the floating animation
+    // The animation is applied to the modelRef, which is the inner group
     
-    // Vertical floating (Y-axis) - change amplitude (0.08) and speed (0.8)
-    modelRef.current.position.y = Math.sin(time * 0.8) * 0.08;
-    
-    // Gentle rotation (Y-axis) - change amplitude (0.05) and speed (0.3)
-    modelRef.current.rotation.y = Math.sin(time * 0.3) * 0.05;
-    
-    // Optional: Add X-axis floating
-    // modelRef.current.position.x = Math.cos(time * 0.5) * 0.03;
-    
-    // Optional: Add Z-axis rotation
-    // modelRef.current.rotation.z = Math.sin(time * 0.4) * 0.02;
+    // ⬆️ VERTICAL FLOATING (Y-axis) - This should work now!
+    // Change the numbers to adjust:
+    // - First number (0.8): speed of floating
+    // - Second number (0.15): how high/low it floats
+    if (modelRef.current) {
+      modelRef.current.position.y = Math.sin(time * 0.8) * 0.15;
+      
+      // 🔄 GENTLE ROTATION (Y-axis)
+      // - First number (0.3): speed of rotation
+      // - Second number (0.05): how much it rotates
+      modelRef.current.rotation.y = Math.sin(time * 0.3) * 0.05;
+      
+      // 🌊 OPTIONAL: Add side-to-side floating (X-axis)
+      // Uncomment this line to add horizontal floating:
+      // modelRef.current.position.x = Math.cos(time * 0.5) * 0.03;
+    }
   });
 
   useEffect(() => {
@@ -109,109 +115,92 @@ const Model = (props) => {
   }, [setCurrentWine]);
 
   useEffect(() => {
-    // Find the main material for the bottle
-    // Common material names for bottles: "Material", "Bottle", "Glass", "Body", etc.
-    const materialNames = Object.keys(materials);
-    let targetMaterial = null;
-    
-    // Try to find the main bottle material
-    const possibleNames = ['Material', 'Bottle', 'Glass', 'Body', 'Main'];
-    for (const name of possibleNames) {
-      if (materials[name]) {
-        targetMaterial = materials[name];
-        break;
+    // Find and apply shader to all materials
+    Object.values(materials).forEach((material) => {
+      if (material) {
+        // 🎨 TEXTURE BRIGHTNESS CONTROL - Adjust these values:
+        material.metalness = 0.2;  // Lower = less metallic (0-1)
+        material.roughness = 0.6;  // Lower = more shiny (0-1)
+        
+        // 💡 BRIGHTNESS BOOST - Uncomment to make brighter:
+        // material.emissive = new Color(0x111111); // Adds glow
+        
+        material.onBeforeCompile = (shader) => {
+          shader.uniforms = Object.assign(shader.uniforms, uniforms);
+          shader.vertexShader = shader.vertexShader.replace(
+            `#include <common>`,
+            `
+              #include <common>
+              varying vec2 vUv;
+            `
+          );
+
+          shader.vertexShader = shader.vertexShader.replace(
+            "#include <begin_vertex>",
+            `
+              #include <begin_vertex>
+              vUv = uv;
+            `
+          );
+
+          // Fragment Shader
+          shader.fragmentShader = shader.fragmentShader.replace(
+            `#include <common>`,
+            `
+              #include <common>
+
+              uniform float u_time;
+              uniform vec3 u_color1;
+              uniform vec3 u_color2;
+              uniform float u_progress;
+              uniform float u_width;
+              uniform float u_scaleX;
+              uniform float u_scaleY;
+              uniform vec2 u_textureSize;
+
+              varying vec2 vUv;
+              
+              ${noise}
+
+              float parabola( float x, float k ) {
+                return pow( 4. * x * ( 1. - x ), k );
+              }
+          `
+          );
+
+          shader.fragmentShader = shader.fragmentShader.replace(
+            `#include <color_fragment>`,
+            `
+              #include <color_fragment>
+
+                float aspect = u_textureSize.x/u_textureSize.y;
+
+                float dt = parabola(u_progress,1.);
+                float border = 1.;
+
+                float noise = 0.5*(cnoise(vec4(vUv.x*u_scaleX + 0.5*u_time/4., vUv.y*u_scaleY,0.5*u_time/4.,0.)) + 1.);
+
+                float w = u_width*dt;
+
+                float maskValue = smoothstep(1. - w,1.,vUv.y + mix(-w/2., 1. - w/2., u_progress));
+
+                maskValue += maskValue * noise * 0.3;
+
+                float mask = smoothstep(border,border+0.01,maskValue);
+
+                // 🍷 Enhanced wine colors with brightness boost
+                vec3 wine1 = u_color1 * 2.0;  // Increase this number for brighter colors
+                vec3 wine2 = u_color2 * 2.0;  // Increase this number for brighter colors
+
+                diffuseColor.rgb += mix(wine1, wine2, mask);
+                
+                // 💡 OVERALL BRIGHTNESS BOOST - Uncomment to make everything brighter:
+                // diffuseColor.rgb *= 1.5;
+            `
+          );
+        };
       }
-    }
-    
-    // If no specific material found, use the first available material
-    if (!targetMaterial && materialNames.length > 0) {
-      targetMaterial = materials[materialNames[0]];
-      console.log(`Using material: ${materialNames[0]}`);
-    }
-
-    if (targetMaterial) {
-      // Update texture size if material has a map
-      if (targetMaterial.map) {
-        uniforms.u_textureSize.value = new Vector2(
-          targetMaterial.map.source.data.width,
-          targetMaterial.map.source.data.height
-        );
-      }
-
-      targetMaterial.metalness = 0.1;
-      targetMaterial.roughness = 0.8;
-      targetMaterial.onBeforeCompile = (shader) => {
-        shader.uniforms = Object.assign(shader.uniforms, uniforms);
-        shader.vertexShader = shader.vertexShader.replace(
-          `#include <common>`,
-          `
-            #include <common>
-            varying vec2 vUv;
-          `
-        );
-
-        shader.vertexShader = shader.vertexShader.replace(
-          "#include <begin_vertex>",
-          `
-            #include <begin_vertex>
-            vUv = uv;
-          `
-        );
-
-        // Fragment Shader
-        shader.fragmentShader = shader.fragmentShader.replace(
-          `#include <common>`,
-          `
-            #include <common>
-
-            uniform float u_time;
-            uniform vec3 u_color1;
-            uniform vec3 u_color2;
-            uniform float u_progress;
-            uniform float u_width;
-            uniform float u_scaleX;
-            uniform float u_scaleY;
-            uniform vec2 u_textureSize;
-
-            varying vec2 vUv;
-            
-            ${noise}
-
-            float parabola( float x, float k ) {
-              return pow( 4. * x * ( 1. - x ), k );
-            }
-        `
-        );
-
-        shader.fragmentShader = shader.fragmentShader.replace(
-          `#include <color_fragment>`,
-          `
-            #include <color_fragment>
-
-              float aspect = u_textureSize.x/u_textureSize.y;
-
-              float dt = parabola(u_progress,1.);
-              float border = 1.;
-
-              float noise = 0.5*(cnoise(vec4(vUv.x*u_scaleX + 0.5*u_time/4., vUv.y*u_scaleY,0.5*u_time/4.,0.)) + 1.);
-
-              float w = u_width*dt;
-
-              float maskValue = smoothstep(1. - w,1.,vUv.y + mix(-w/2., 1. - w/2., u_progress));
-
-              maskValue += maskValue * noise * 0.3;
-
-              float mask = smoothstep(border,border+0.01,maskValue);
-
-              // Enhanced wine colors with more depth
-              vec3 wine1 = u_color1 * 1.2;
-              vec3 wine2 = u_color2 * 1.2;
-
-              diffuseColor.rgb += mix(wine1, wine2, mask);
-          `
-        );
-      };
-    }
+    });
   }, [uniforms, materials]);
 
   return (
@@ -221,41 +210,48 @@ const Model = (props) => {
         <planeGeometry args={[width, height]} />
       </mesh>
 
-      {/* MODEL POSITIONING CONTROL - This is where you control the bottle's position and rotation */}
+      {/* 📍 MAIN POSITIONING CONTROL - This controls where the bottle appears on screen */}
       <group
-        ref={modelRef}
-        // ROTATION: [x-axis, y-axis, z-axis] in radians
-        // Current: slightly rotated to show the bottle nicely
-        rotation={[-95.9, 1.2, -1]}
+        ref={groupRef}
+        // 🔄 ROTATION: [x-axis, y-axis, z-axis] in radians
+        // Adjust these to change the bottle's orientation:
+        rotation={[0, 1.2, 0]}
         
-        // POSITION: [x, y, z] - move the bottle in 3D space
-        // x: left(-) / right(+)
-        // y: down(-) / up(+) 
-        // z: back(-) / forward(+)
+        // 📍 POSITION: [x, y, z] - This controls the bottle's location
+        // x: left(-) / right(+) - try values like -2, 0, 2, 4
+        // y: down(-) / up(+) - try values like -2, 0, 2, 4  
+        // z: back(-) / forward(+) - try values like 3, 5, 7
         position={[2, 0, 5]}
         
-        // SCALE: [x, y, z] - make the bottle bigger/smaller
-        scale={[3, 3, 3]}
+        // 📏 SCALE: [x, y, z] - Make the bottle bigger/smaller
+        // Try values like [1, 1, 1] for normal size, [2, 2, 2] for double size
+        scale={[1.5, 1.5, 1.5]}
         
         {...props}
         dispose={null}
       >
-        {/* Render all meshes from the JD bottle model */}
-        {Object.entries(nodes).map(([name, node]) => {
-          if (node.geometry && node.material) {
-            return (
-              <mesh
-                key={name}
-                geometry={node.geometry}
-                material={materials[node.material.name] || node.material}
-                rotation={node.rotation}
-                position={node.position}
-                scale={node.scale}
-              />
-            );
-          }
-          return null;
-        })}
+        {/* 🎭 ANIMATION GROUP - This is what actually moves during animation */}
+        <group ref={modelRef}>
+          {/* Render all meshes from the JD bottle model */}
+          {Object.entries(nodes).map(([name, node]) => {
+            if (node.geometry) {
+              const materialName = node.material?.name || name;
+              const material = materials[materialName] || materials[Object.keys(materials)[0]];
+              
+              return (
+                <mesh
+                  key={name}
+                  geometry={node.geometry}
+                  material={material}
+                  rotation={node.rotation}
+                  position={node.position}
+                  scale={node.scale}
+                />
+              );
+            }
+            return null;
+          })}
+        </group>
       </group>
     </>
   );
