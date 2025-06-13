@@ -232,7 +232,7 @@ const Model = (props) => {
         // x: left(-) / right(+)
         // y: down(-) / up(+) 
         // z: back(-) / forward(+)
-        position={[2, 0, -2]}
+        position={[2, 0, -1]}
         
         // SCALE: [x, y, z] - make the bottle bigger/smaller
         scale={[3, 3, 3]}
