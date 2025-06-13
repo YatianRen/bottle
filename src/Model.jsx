@@ -189,8 +189,8 @@ const Model = (props) => {
                 float mask = smoothstep(border,border+0.01,maskValue);
 
                 // 🍷 Enhanced wine colors with brightness boost
-                vec3 wine1 = u_color1 * 1.0;  // Increase this number for brighter colors
-                vec3 wine2 = u_color2 * 2.0;  // Increase this number for brighter colors
+                vec3 wine1 = u_color1 * 0.3;  // Increase this number for brighter colors
+                vec3 wine2 = u_color2 * 0.3;  // Increase this number for brighter colors
 
                 diffuseColor.rgb += mix(wine1, wine2, mask);
                 
