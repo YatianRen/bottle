@@ -5,7 +5,7 @@ const CodropsFrame = () => {
   return (
     <div className="frame">
       <nav className="frame__nav">
-        <a href="#home" className="active">home</a>
+        <a href="https://www.rena-design-la.com/" className="active">home</a>
         <a href="#wine">wine</a>
         <a href="#vibe">vibe</a>
         <a href="#squad">squad</a>

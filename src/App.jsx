@@ -8,7 +8,7 @@ export default function App() {
       {/* Navigation bar at the top, over the canvas */}
       <div className="nav-over-canvas">
         <nav className="frame__nav">
-          <a href="#home" className="active">home</a>
+          <a href="https://www.rena-design-la.com/" className="active">home</a>
           <a href="#wine">wine</a>
           <a href="#vibe">vibe</a>
           <a href="#squad">squad</a>
