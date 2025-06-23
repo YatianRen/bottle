@@ -8,8 +8,10 @@ Title: Energy Drink Game Ready Model
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
-import { useGLTF } from "@react-three/drei";
-import { Color, Vector2 } from "three";
+import { useLoader } from "@react-three/fiber";
+import { OBJLoader } from "three/examples/jsm/loaders/OBJLoader";
+import { useTexture, Billboard } from "@react-three/drei";
+import { Color, TextureLoader, RepeatWrapping, MeshStandardMaterial, DoubleSide, PlaneGeometry } from "three";
 import { animate } from "framer-motion";
 import { easeQuadOut } from "d3-ease";
 
@@ -17,246 +19,274 @@ import { noise } from "./Noise";
 import { useStore } from "./store";
 import { wines } from "./data";
 
-// Updated to use JD bottle model
-import model from "./assets/models/jd_bottle.glb?url";
+import model from "./assets/models/jd_bottle_lowpoly.obj?url";
+import logoImg from "./assets/logo 2.png";
 
-const Model = (props) => {
-  const { nodes, materials } = useGLTF(model);
+// Import textures
+import baseColorTexture from "./assets/models/Texture/defaultMat_Base_Color.jpg?url";
+import normalTexture from "./assets/models/Texture/defaultMat_Normal_DirectX.jpg?url";
+import roughnessTexture from "./assets/models/Texture/defaultMat_Roughness.jpg?url";
+import metallicTexture from "./assets/models/Texture/defaultMat_Metallic.jpg?url";
+import opacityTexture from "./assets/models/Texture/defaultMat_Opacity.jpg?url";
+import aoTexture from "./assets/models/Texture/defaultMat_Mixed_AO.jpg?url";
 
-  const {
-    viewport: { width, height },
-  } = useThree();
+// Function to create a bottle material with a specific color
+const createBottleMaterial = (textures, color) => {
+  return new MeshStandardMaterial({
+    map: textures.map,
+    normalMap: textures.normalMap,
+    roughnessMap: textures.roughnessMap,
+    metalnessMap: textures.metalnessMap,
+    aoMap: textures.aoMap,
+    transparent: true,
+    opacity: 0.9,
+    side: DoubleSide,
+    envMapIntensity: 0.05,
+    roughness: 0.1,
+    metalness: 0.2,
+    aoMapIntensity: 0.5,
+    color: new Color(color)
+  });
+};
 
+// Debug function to log color in different formats
+const debugColor = (color, label = "") => {
+  const c = new Color(color);
+  console.log(`${label}:`, {
+    hex: c.getHexString(),
+    rgb: c.toArray(),
+    originalValue: color.toString(16)
+  });
+};
+
+const Bottle = (props) => {
+  const obj = useLoader(OBJLoader, model);
   const modelRef = useRef();
-  const groupRef = useRef(); // Separate ref for the group positioning
+  const groupRef = useRef();
   const [current, setCurrent] = useState(0);
+  const [currentMaterial, setCurrentMaterial] = useState(null);
+  const [isAnimating, setIsAnimating] = useState(false);
+  
+  // Load textures
+  const textures = useTexture({
+    map: baseColorTexture,
+    normalMap: normalTexture,
+    roughnessMap: roughnessTexture,
+    metalnessMap: metallicTexture,
+    aoMap: aoTexture,
+    alphaMap: opacityTexture,
+  });
+
+  // Configure texture settings
+  Object.values(textures).forEach(texture => {
+    texture.wrapS = texture.wrapT = RepeatWrapping;
+    texture.anisotropy = 4;
+  });
+
+  // Create label material (stays white)
+  const labelMaterial = useMemo(() => {
+    const mat = new MeshStandardMaterial({
+      map: textures.map,
+      normalMap: textures.normalMap,
+      roughnessMap: textures.roughnessMap,
+      metalnessMap: textures.metalnessMap,
+      aoMap: textures.aoMap,
+      transparent: true,
+      opacity: 0.95,
+      side: DoubleSide,
+      color: new Color(0xFFFFFF) // Keep label white
+    });
+    return mat;
+  }, [textures]);
 
   const play = useStore((s) => s.play);
-  const setPlay = useStore((s) => s.setPlay);
   const setCurrentWine = useStore((s) => s.setCurrentWine);
+  const triggerBackgroundChange = useStore((s) => s.triggerBackgroundChange);
 
-  // Log available materials to help identify the correct one
-  useEffect(() => {
-    console.log("Available materials:", Object.keys(materials));
-    console.log("Available nodes:", Object.keys(nodes));
-  }, [materials, nodes]);
-
-  const uniforms = useMemo(
-    () => ({
-      u_time: { value: 0 },
-      u_color1: { value: new Color(wines[0].color) },
-      u_color2: { value: new Color(wines[1].color) },
-      u_progress: { value: 0.5 },
-      u_width: { value: 0.8 },
-      u_scaleX: { value: 50 },
-      u_scaleY: { value: 50 },
-      u_textureSize: {
-        value: new Vector2(1024, 1024), // Default size, will update when material is found
-      },
-    }),
-    [wines]
-  );
+  // Function to update all bottle meshes with a new material
+  const updateBottleMaterial = (newMaterial) => {
+    obj.traverse((child) => {
+      if (child.isMesh && child.name !== 'Group15797') {
+        child.material = newMaterial;
+      }
+    });
+  };
 
   const handleClick = () => {
+    console.log("\n=== Click Handler Triggered ===");
+    console.log("Play state:", play);
+    console.log("Current index:", current);
+    console.log("Is animating:", isAnimating);
+    
+    if (play && !isAnimating) {
+      triggerColorChange();
+    } else {
+      console.log("Play state is false or already animating, not starting animation");
+    }
+  };
+
+  // Function to trigger color change (can be called from drag or click)
+  const triggerColorChange = () => {
+    if (!play || isAnimating) return;
+    
+    setIsAnimating(true);
+    
     let len = wines.length;
     let nextIndex = (current + 1) % len;
-    let nextTexture = new Color(wines[nextIndex].color);
-    uniforms.u_color2.value = nextTexture;
+    
+    console.log("\n=== Color Change Triggered ===");
+    console.log("Current index:", current, "Next index:", nextIndex);
+    debugColor(wines[current].color, "Current wine color");
+    debugColor(wines[nextIndex].color, "Next wine color");
 
-    if (play) {
-      animate(0.5, 1, {
-        onUpdate(v) {
-          setPlay(false);
-          uniforms.u_progress.value = v;
-        },
-        onComplete() {
-          setCurrent(nextIndex);
-          setCurrentWine(wines[nextIndex]);
+    const currentColor = new Color(wines[current].color);
+    const nextColor = new Color(wines[nextIndex].color);
 
-          uniforms.u_color1.value = nextTexture;
-          uniforms.u_progress.value = 0.5;
-          setPlay(true);
-        },
+    // Trigger background wave animation immediately with the new color
+    triggerBackgroundChange();
 
-        duration: 1.2,
-        ease: easeQuadOut,
-      });
+    animate(0, 1, {
+      onUpdate(v) {
+        const newColor = new Color();
+        newColor.lerpColors(currentColor, nextColor, v);
+        
+        // Create new material with interpolated color
+        const newMaterial = createBottleMaterial(textures, newColor.getHex());
+        setCurrentMaterial(newMaterial);
+        updateBottleMaterial(newMaterial);
+        
+        if (v === 0 || v === 0.5 || v === 1) {
+          console.log(`Animation progress ${v * 100}%:`, {
+            interpolatedColor: newColor.getHexString(),
+            materialColor: newMaterial.color.getHexString()
+          });
+        }
+      },
+      onComplete() {
+        console.log("\n=== Color Transition Complete ===");
+        setCurrent(nextIndex);
+        setCurrentWine(wines[nextIndex]);
+        
+        // Create final material
+        const finalMaterial = createBottleMaterial(textures, wines[nextIndex].color);
+        setCurrentMaterial(finalMaterial);
+        updateBottleMaterial(finalMaterial);
+        
+        console.log("Final material color:", finalMaterial.color.getHexString());
+        
+        // Reset animation flag
+        setIsAnimating(false);
+      },
+      duration: 0.3, // Much faster transition (was 2.5)
+      ease: easeQuadOut,
+    });
+  };
+
+  // Handle drag events
+  const handleDrag = (event) => {
+    console.log("Drag detected on bottle");
+    console.log("Is animating:", isAnimating);
+    
+    if (!isAnimating) {
+      // Trigger color change on drag
+      triggerColorChange();
     }
   };
 
   useFrame(({ clock }) => {
     const time = clock.getElapsedTime();
-    uniforms.u_time.value = time;
-
-    // 🎯 ANIMATION CENTER CONTROL - This controls the floating animation
-    // The animation is applied to the modelRef, which is the inner group
-    
-    // ⬆️ VERTICAL FLOATING (Y-axis) - This should work now!
-    // Change the numbers to adjust:
-    // - First number (0.8): speed of floating
-    // - Second number (0.15): how high/low it floats
     if (modelRef.current) {
-      modelRef.current.position.y = Math.sin(time * 0.8) * 0.15;
-      
-      // 🔄 GENTLE ROTATION (Y-axis)
-      // - First number (0.3): speed of rotation
-      // - Second number (0.05): how much it rotates
-      modelRef.current.rotation.y = Math.sin(time * 0.3) * 0.05;
-      
-      // 🌊 OPTIONAL: Add side-to-side floating (X-axis)
-      // Uncomment this line to add horizontal floating:
-      // modelRef.current.position.x = Math.cos(time * 0.5) * 0.03;
+      modelRef.current.position.y = Math.sin(time * 0.8) * 0.08;
+      modelRef.current.rotation.y = Math.sin(time * 0.6) * 0.2;
+      modelRef.current.rotation.z = Math.sin(time * 0.6) * 0.05;
     }
   });
 
   useEffect(() => {
-    // Initialize current wine in store
     setCurrentWine(wines[0]);
   }, [setCurrentWine]);
 
+  // Initialize materials when textures are loaded
   useEffect(() => {
-    // Find and apply shader to all materials
-    Object.values(materials).forEach((material) => {
-      if (material) {
-        // 🎨 TEXTURE BRIGHTNESS CONTROL - Adjust these values:
-        material.metalness = 0.2;  // Lower = less metallic (0-1)
-        material.roughness = 0.6;  // Lower = more shiny (0-1)
-        
-        // 💡 BRIGHTNESS BOOST - Uncomment to make brighter:
-        // material.emissive = new Color(0x111111); // Adds glow
-        
-        material.onBeforeCompile = (shader) => {
-          shader.uniforms = Object.assign(shader.uniforms, uniforms);
-          shader.vertexShader = shader.vertexShader.replace(
-            `#include <common>`,
-            `
-              #include <common>
-              varying vec2 vUv;
-            `
-          );
+    if (textures.map && !currentMaterial) {
+      const initialMaterial = createBottleMaterial(textures, wines[0].color);
+      setCurrentMaterial(initialMaterial);
+      console.log("Created initial material with color:", wines[0].color.toString(16));
+    }
+  }, [textures, currentMaterial]);
 
-          shader.vertexShader = shader.vertexShader.replace(
-            "#include <begin_vertex>",
-            `
-              #include <begin_vertex>
-              vUv = uv;
-            `
-          );
-
-          // Fragment Shader
-          shader.fragmentShader = shader.fragmentShader.replace(
-            `#include <common>`,
-            `
-              #include <common>
-
-              uniform float u_time;
-              uniform vec3 u_color1;
-              uniform vec3 u_color2;
-              uniform float u_progress;
-              uniform float u_width;
-              uniform float u_scaleX;
-              uniform float u_scaleY;
-              uniform vec2 u_textureSize;
-
-              varying vec2 vUv;
-              
-              ${noise}
-
-              float parabola( float x, float k ) {
-                return pow( 4. * x * ( 1. - x ), k );
-              }
-          `
-          );
-
-          shader.fragmentShader = shader.fragmentShader.replace(
-            `#include <color_fragment>`,
-            `
-              #include <color_fragment>
-
-                float aspect = u_textureSize.x/u_textureSize.y;
-
-                float dt = parabola(u_progress,1.);
-                float border = 1.;
-
-                float noise = 0.5*(cnoise(vec4(vUv.x*u_scaleX + 0.5*u_time/4., vUv.y*u_scaleY,0.5*u_time/4.,0.)) + 1.);
-
-                float w = u_width*dt;
-
-                float maskValue = smoothstep(1. - w,1.,vUv.y + mix(-w/2., 1. - w/2., u_progress));
-
-                maskValue += maskValue * noise * 0.3;
-
-                float mask = smoothstep(border,border+0.01,maskValue);
-
-                // 🍷 Enhanced wine colors with brightness boost
-                vec3 wine1 = u_color1 * 0.3;  // Increase this number for brighter colors
-                vec3 wine2 = u_color2 * 0.3;  // Increase this number for brighter colors
-
-                diffuseColor.rgb += mix(wine1, wine2, mask);
-                
-                // 💡 OVERALL BRIGHTNESS BOOST - Uncomment to make everything brighter:
-                // diffuseColor.rgb *= 1.5;
-            `
-          );
-        };
-      }
-    });
-  }, [uniforms, materials]);
+  useEffect(() => {
+    if (obj && currentMaterial) {
+      console.log("\n=== Assigning Materials to Meshes ===");
+      let bottleMeshCount = 0;
+      let labelMeshCount = 0;
+      
+      obj.traverse((child) => {
+        if (child.isMesh) {
+          // Check if this is the label mesh
+          if (child.name === 'Group15797') {
+            child.material = labelMaterial;
+            labelMeshCount++;
+            console.log(`Assigned label material to mesh: ${child.name}`);
+          } else {
+            child.material = currentMaterial;
+            bottleMeshCount++;
+            console.log(`Assigned bottle material to mesh: ${child.name}`);
+            debugColor(currentMaterial.color.getHex(), `Bottle material color for ${child.name}`);
+          }
+        }
+      });
+      
+      console.log(`Total meshes: ${bottleMeshCount} bottle + ${labelMeshCount} label`);
+    }
+  }, [obj, currentMaterial, labelMaterial]);
 
   return (
-    <>
-      {/* Plane helper for click event */}
-      <mesh visible={false} onClick={() => handleClick()}>
-        <planeGeometry args={[width, height]} />
-      </mesh>
-
-      {/* 📍 MAIN POSITIONING CONTROL - This controls where the bottle appears on screen */}
-      <group
-        ref={groupRef}
-        // 🔄 ROTATION: [x-axis, y-axis, z-axis] in radians
-        // Adjust these to change the bottle's orientation:
-        rotation={[-1.5, 0, 0]}
-        
-        // 📍 POSITION: [x, y, z] - This controls the bottle's location
-        // x: left(-) / right(+) - try values like -2, 0, 2, 4
-        // y: down(-) / up(+) - try values like -2, 0, 2, 4  
-        // z: back(-) / forward(+) - try values like 3, 5, 7
-        position={[2, -1.5, 5]}
-        
-        // 📏 SCALE: [x, y, z] - Make the bottle bigger/smaller
-        // Try values like [1, 1, 1] for normal size, [2, 2, 2] for double size
-        scale={[2, 2, 2]}
-        
-        {...props}
-        dispose={null}
-      >
-        {/* 🎭 ANIMATION GROUP - This is what actually moves during animation */}
-        <group ref={modelRef}>
-          {/* Render all meshes from the JD bottle model */}
-          {Object.entries(nodes).map(([name, node]) => {
-            if (node.geometry) {
-              const materialName = node.material?.name || name;
-              const material = materials[materialName] || materials[Object.keys(materials)[0]];
-              
-              return (
-                <mesh
-                  key={name}
-                  geometry={node.geometry}
-                  material={material}
-                  rotation={node.rotation}
-                  position={node.position}
-                  scale={node.scale}
-                />
-              );
-            }
-            return null;
-          })}
-        </group>
-      </group>
-    </>
+    <group 
+      ref={groupRef} 
+      {...props} 
+      onClick={handleClick}
+      onPointerDown={handleDrag}
+    >
+      <primitive ref={modelRef} object={obj} scale={3.8} position={[0, -0.3, 0]} />
+    </group>
   );
 };
 
-useGLTF.preload(model);
+// Logo Component
+const Logo = () => {
+  const logoTexture = useLoader(TextureLoader, logoImg);
+  
+  return (
+    <Billboard
+      follow={true}
+      lockX={false}
+      lockY={false}
+      lockZ={false}
+    >
+      <mesh position={[0, 4.6, -2]}>
+        <planeGeometry args={[3.5, 2]} />
+        <meshStandardMaterial 
+          map={logoTexture} 
+          transparent={true} 
+          opacity={1}
+          side={DoubleSide}
+          depthTest={false}
+          metalness={0.2}
+          roughness={0.0}
+          envMapIntensity={0.05}
+          // Optional: Add normal map for more texture detail
+          // normalMap={normalTexture}
+          // normalScale={[0.1, 0.1]}
+        />
+      </mesh>
+    </Billboard>
+  );
+};
+
+const Model = {
+  Bottle,
+  Logo
+};
 
 export default Model;

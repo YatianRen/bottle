@@ -34,16 +34,16 @@ body,
 /* ////////////////////////////////////  Frame & Layout  //////////////////////////////////// */
 
 .frame {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  padding: max(1.5rem, 40/1440 * 100vw);
-  z-index: 99;
+  padding: 0;
+  position: absolute;
+  top: 0; left: 0; width: 100%; height: 100%;
+  z-index: 0;
   pointer-events: none;
   display: flex;
   flex-direction: column;
+  align-items: center;
+  background: transparent;
+  min-height: 100vh;
 }
 
 .frame__header {
@@ -115,15 +115,19 @@ body,
 
 .frame__nav {
   display: flex;
+  justify-content: center;
+  align-items: center;
   gap: 2.5rem;
   pointer-events: auto;
+  width: 100%;
+  font-family: 'Raleway', sans-serif;
 }
 
 .frame__nav a {
   color: rgba(245, 245, 245, 0.8);
   text-decoration: none;
   font-weight: 500;
-  font-family: "Space Grotesk", sans-serif;
+  font-family: 'Raleway', sans-serif;
   transition: all 0.3s ease;
   position: relative;
   padding: 0.5rem 0;
@@ -299,11 +303,16 @@ body,
 /* ////////////////////////////////////  Canvas  //////////////////////////////////// */
 
 .canvas {
-  width: 100%;
-  height: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100vw;
+  height: 100vh;
   position: fixed;
   top: 0;
   left: 0;
+  pointer-events: auto;
+  z-index: 2;
 }
 
 /* ////////////////////////////////////  Responsive  //////////////////////////////////// */
@@ -361,4 +370,134 @@ body,
   .brand__name {
     font-size: 1.6rem;
   }
+}
+
+/* --- Playball and Raleway font imports should be added to index.html --- */
+
+.ferra-logo-wrapper {
+  display: flex;
+  justify-content: center;
+  align-items: flex-end;
+  margin-top: 4.5rem;
+  margin-bottom: 2.5rem;
+  position: relative;
+  z-index: 0;
+}
+
+.ferra-logo {
+  font-family: 'Playball', cursive;
+  font-size: 4.5rem;
+  font-weight: 400;
+  line-height: 1.1;
+  letter-spacing: 0.04em;
+  color: #BD9542; /* fallback */
+  background: linear-gradient(135deg, #BD9542 0%, #E9D19B 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  text-fill-color: transparent;
+  -webkit-text-stroke: 0.5px #FFEFFC;
+  text-stroke: 0.5px #FFEFFC;
+  position: relative;
+  padding: 0 0.5rem;
+  line-height: 1.1;
+}
+
+.ferra-logo::after { display: none !important; }
+
+.ferra-tagline {
+  text-align: center;
+  font-family: 'Raleway', sans-serif;
+  font-weight: 300;
+  font-size: 1.35rem;
+  background: linear-gradient(135deg, #BD9542 0%, #E9D19B 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  text-fill-color: transparent;
+  line-height: 1.5;
+  padding-bottom: 2 rem;
+  margin-top: 5rem;
+}
+
+.ferra-footer {
+  margin-top: auto;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-bottom: 1rem;
+  transform: translateY(-3rem); /* Move the entire footer up by 3rem */
+}
+
+.logo-under-canvas {
+  position: fixed;
+  top: 100px; /* adjust as needed */
+  left: 0;
+  width: 100vw;
+  display: flex;
+  justify-content: center;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.footer-over-canvas {
+  position: fixed;
+  bottom: 0.5rem;
+  left: 0;
+  width: 100vw;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  z-index: 3;
+  pointer-events: none;
+}
+
+.footer-over-canvas > * {
+  pointer-events: auto;
+}
+
+.footer-over-canvas .ferra-tagline {
+  text-align: center;
+  font-family: 'Raleway', sans-serif;
+  font-weight: 300;
+  font-size: 1.35rem;
+  background: linear-gradient(135deg, #BD9542 0%, #E9D19B 100%);
+  opacity: 0.4;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  text-fill-color: transparent;
+  line-height: 1.5;
+  padding-bottom: 2rem;
+  margin-top: 0;
+  position: relative;
+}
+
+.nav-over-canvas {
+  position: fixed;
+  top: 12px;         /* Move down 20px from the top */
+  left: 0;
+  width: 100vw;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 4;
+  pointer-events: none;
+}
+
+.nav-over-canvas .frame__nav {
+  pointer-events: auto;
+}
+
+/* Image logo styles */
+.ferra-logo-image {
+  max-width: 200px;
+  height: auto;
+  filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.3));
+  transition: transform 0.3s ease;
+}
+
+.ferra-logo-image:hover {
+  transform: scale(1.05);
 }

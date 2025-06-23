@@ -11,7 +11,7 @@ export const wines = [
     name: "Golden Hour",
     year: "2023", 
     type: "Crisp White",
-    color: 0x8b4513
+    color: 0x70380F
   },
   {
     name: "Urban Jungle",

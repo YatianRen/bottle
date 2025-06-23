@@ -11,37 +11,53 @@ import { BackgroundMaterial } from "./BackgroundMaterial";
 
 function Background() {
   const [index, setIndex] = useState(0);
-
+  const [currentColor, setCurrentColor] = useState(new Color(wines[0].color));
+  const [progress, setProgress] = useState(0);
   const play = useStore((s) => s.play);
-
   const material = useRef();
 
   const {
     viewport: { width, height },
   } = useThree();
 
-  const handleClick = () => {
-    if (play) {
-      index == wines.length - 1 ? setIndex(0) : setIndex(index + 1);
-    }
-  };
-
+  // Listen for background color change events from the bottle
   useEffect(() => {
-    animate(0, 1, {
-      onUpdate(v) {
-        if (!material.current) return;
+    const handleBackgroundChange = () => {
+      const nextIndex = index === wines.length - 1 ? 0 : index + 1;
+      const nextColor = new Color(wines[nextIndex].color);
+      
+      // Reset progress and start wave animation with the new color
+      setProgress(0);
+      setCurrentColor(nextColor);
+      setIndex(nextIndex);
+      
+      console.log("Background wave animation started with color:", nextColor.getHexString());
+      
+      animate(0, 1, {
+        onUpdate(v) {
+          if (!material.current) return;
+          setProgress(v);
+        },
+        onComplete() {
+          setProgress(0);
+        },
+        duration: 2.5,
+        ease: easeQuadOut,
+      });
+    };
 
-        material.current.u_progress = v;
-      },
-
-      duration: 2.5,
-      ease: easeQuadOut,
-    });
+    window.addEventListener('backgroundColorChange', handleBackgroundChange);
+    
+    return () => {
+      window.removeEventListener('backgroundColorChange', handleBackgroundChange);
+    };
   }, [index]);
 
   useFrame(({ clock }) => {
-    const time = clock.getElapsedTime();
-    material.current.u_time = time;
+    if (material.current) {
+      material.current.u_time = clock.getElapsedTime();
+      material.current.u_progress = progress;
+    }
   });
 
   // 🎯 BACKGROUND ANIMATION CENTER CONTROL - Change these values!
@@ -65,14 +81,15 @@ function Background() {
   // Upper right:          u_centerX={0.7} u_centerY={0.7}
 
   return (
-    <mesh onClick={(e) => handleClick(e)}>
+    <mesh>
       <planeGeometry args={[width, height]} />
       <backgroundMaterial
         ref={material}
         key={BackgroundMaterial.key}
         u_aspect={width / height}
-        u_color={new Color(wines[index].color)}
-        u_centerX={0.7}
+        u_color={currentColor}
+        u_progress={progress}
+        u_centerX={0.5}
         u_centerY={0.5}
       />
     </mesh>
